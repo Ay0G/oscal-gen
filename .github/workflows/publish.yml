@@ -1,13 +1,18 @@
 name: Publish to PyPI
 
-# Trusted Publishing (OIDC): PyPI issues a short-lived credential per run, so
-# there is no API token stored in this repo and nothing to leak or rotate.
+# Publishing works either way -- pick one:
 #
-# One-time setup on pypi.org, required before the first release:
-#   1. Register a pending publisher for the GitHub repo Ay0G/oscal-gen
-#      with workflow filename: publish.yml
-#      (Manage -> Publishing -> add a new publisher -> GitHub)
-#   2. Create a "pypi" environment in the repo with required reviewers.
+#   Trusted Publishing (no secret, preferred)
+#     On pypi.org: Manage -> Publishing -> add a new publisher -> GitHub, with
+#       Owner:            Ay0G
+#       Repository:       oscal-gen
+#       Workflow name:    publish.yml
+#       (leave Environment blank unless the job below declares one)
+#
+#   API token (fallback)
+#     Create a token at pypi.org/manage/account/token/ scoped to this project,
+#     then add it as the repo secret PYPI_API_TOKEN. If that secret exists the
+#     upload step uses it; otherwise the step falls back to OIDC.
 
 on:
   release:
@@ -25,9 +30,9 @@ jobs:
       url: https://pypi.org/p/oscal-gen
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -43,6 +48,10 @@ jobs:
         run: twine check --strict dist/*
 
       - name: Upload to PyPI
+        env:
+          # Empty credentials make twine fall back to Trusted Publishing.
+          TWINE_USERNAME: ${{ secrets.PYPI_API_TOKEN && '__token__' || '' }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: twine upload --non-interactive dist/*
 
       - name: Confirm the release is live
