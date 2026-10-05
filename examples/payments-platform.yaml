@@ -1,0 +1,169 @@
+# Starter input for oscal-gen, targeting OSCAL 1.1.2.
+#
+# Provide at least one of: components, system, poam.items.
+# Prop shorthand: `name: value` becomes an OSCAL prop; names without a namespace
+# get `organization.prop_ns` applied automatically.
+
+metadata:
+  title: Acme Payments Platform -- system security plan
+  version: 1.0.0
+  # last-modified defaults to now. Pass --now or set it here for reproducible output.
+
+organization:
+  name: Acme Corp
+  short-name: ACME
+  prop_ns: https://acme.example.com/ns
+  parties:
+    - type: organization
+      name: Acme Corp
+      short-name: ACME
+  roles:
+    - id: system-owner
+      title: System Owner
+    - id: issao
+      title: Information System Security Officer
+
+profile:
+  href: https://example.com/profiles/moderate-baseline/profile.json
+
+# ---------------------------------------------------------------------------
+# component-definition.json
+# ---------------------------------------------------------------------------
+components:
+  - title: Payments API
+    type: service
+    description: Public-facing payment authorization service.
+    purpose: Authorize and tokenize card transactions.
+    protocols: [https]
+    responsible-roles: [issao]
+    props:
+      source-repo: https://github.com/acme/payments-api
+    controls:
+      # component-definition requirements carry a real `description` field.
+      - id: ac-2
+        status: partial
+        description: >-
+          Accounts are provisioned through the corporate IdP. Local accounts are
+          disabled except for one break-glass account.
+        statements:
+          - id: ac-2.1
+            description: The IdP enforces phishing-resistant MFA for all staff.
+
+# ---------------------------------------------------------------------------
+# system-security-plan.json
+# ---------------------------------------------------------------------------
+system:
+  name: Acme Payments Platform
+  system-name-short: APP
+  id:
+    - identifier-type: https://acme.example.com/ids/ato
+      id: ATO-2026-0001
+  description: >-
+    Cardholder-data payment processing platform running on AWS us-east-1.
+  status: operational
+  security-sensitivity-level: restricted
+  date-authorized: 2026-01-15
+  security_impact:
+    confidentiality: fips199-moderate
+    integrity: fips199-moderate
+    availability: fips199-moderate
+  authorization_boundary:
+    description: >-
+      Covers the API tier, the worker tier and the Aurora PostgreSQL cluster.
+      The AWS-managed control plane is outside the boundary.
+  network_architecture:
+    description: Public ALB -> private application subnets -> egress via NAT.
+  data_flow:
+    description: >-
+      Card data arrives from merchant POS clients over TLS, is tokenized at the
+      API tier, and only token references are persisted.
+  information_types:
+    - title: Cardholder data
+      description: PAN, expiry and cardholder name, tokenized at ingest.
+      props:
+        pci-data-element: [3, 4]
+  responsible-roles: [system-owner]
+  system_users:
+    - title: Acme platform engineers
+      roles: [system-owner]
+      authorized-privileges:
+        - title: Deploy releases
+          functions-performed: [Deploy to the application tier]
+  inventory_items:
+    - description: Aurora PostgreSQL primary cluster
+      props:
+        platform: aws-rds
+        engine: aurora-postgresql-16.4
+  # These land in system-implementation.components. The uuid is derived from
+  # the title, so it matches the component-definition entry of the same title.
+  components:
+    - title: Payments API
+      type: service
+      description: Public-facing payment authorization service.
+      status: operational
+      controls:
+        # Per-component narratives become `by-components` on the requirement.
+        - id: ac-2
+          implementation_status: partial
+          description: >-
+            Role assignment is handled by the IdP; AC-2(1) holds for staff but
+            not for the break-glass account.
+
+# Top-level controls become the SSP's control-implementation. Because OSCAL
+# 1.1.2 gives SSP requirements no `description` field, narratives are emitted
+# as an `implementation-narrative` prop.
+controls:
+  - id: ac-2
+    status: partial
+    description: >-
+      Accounts are provisioned through the corporate IdP. The break-glass
+      account is the documented exception.
+  - id: sc-12
+    status: implemented
+    description: >-
+      Key management uses AWS KMS customer-managed keys with annual rotation.
+  - id: au-2
+    status: partial
+    description: >-
+      Audit events are centralised, but retention is 400 days against a
+      one-year requirement.
+
+# ---------------------------------------------------------------------------
+# plan-of-action-and-milestones.json
+# ---------------------------------------------------------------------------
+poam:
+  # system-id is inherited from system.id when omitted.
+  items:
+    - title: MFA not enforced for the break-glass account
+      description: >-
+        The break-glass account relies on a password alone, exceeding the
+        phishing-resistant MFA requirement in AC-2(1).
+      props:
+        control-id: ac-2.1
+        severity: high
+      risks:
+        - title: Single-factor administrative access
+          description: >-
+            A compromised break-glass password grants full administrative access.
+          statement: >-
+            Credential compromise of the break-glass account could allow an
+            attacker to take over the platform with no second factor in the way.
+          status: remediating
+          props:
+            likelihood: low
+          deadline: 2026-11-30
+          remediations:
+            - title: Provision a hardware token for the break-glass account
+              description: >-
+                Purchase two FIDO2 keys, register one to the account and store
+                it in the physical safe.
+              lifecycle: planned
+              responsible-roles: [issao]
+              tasks:
+                - title: Order hardware keys
+                  type: action
+                  description: Order two FIDO2 keys from the approved vendor.
+                  timing:
+                    on-date:
+                      date: 2026-10-01
+                  responsible-roles: [issao]
