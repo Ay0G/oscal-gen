@@ -18,8 +18,27 @@ except ImportError as exc:  # pragma: no cover - exercised only on bad installs
     ) from exc
 
 
+TOP_LEVEL_KEYS = frozenset(
+    {
+        "organization",
+        "metadata",
+        "profile",
+        "ssp",
+        "system",
+        "components",
+        "controls",
+        "poam",
+    }
+)
+
+
 def load_input(path: str | Path) -> dict[str, Any]:
-    """Load a YAML or JSON document from disk and return it as a dict."""
+    """Load a YAML or JSON document from disk and return it as a dict.
+
+    Rejects unrecognized top-level keys: a typo like ``componenets`` would
+    otherwise be silently ignored and the user would only see a confusing
+    downstream error about missing content.
+    """
     p = Path(path)
     if not p.is_file():
         raise OscalGenError(f"input file not found: {p}")
@@ -34,6 +53,14 @@ def load_input(path: str | Path) -> dict[str, Any]:
     if not isinstance(data, Mapping):
         raise OscalGenError(
             f"top level of {p} must be a mapping, got {type(data).__name__}"
+        )
+    unknown = sorted(set(data) - TOP_LEVEL_KEYS)
+    if unknown:
+        raise OscalGenError(
+            f"unknown top-level key(s) in {p}: "
+            + ", ".join(repr(k) for k in unknown)
+            + "\n  recognized keys: "
+            + ", ".join(sorted(TOP_LEVEL_KEYS))
         )
     return dict(data)
 

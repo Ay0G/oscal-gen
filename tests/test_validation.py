@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+import yaml
 
 from oscalgen.component import build_component_definition
 from oscalgen.metadata import build_metadata
@@ -255,6 +256,26 @@ def test_build_rejects_a_non_mapping_top_level(tmp_path):
     path.write_text("- a\n- b\n", encoding="utf-8")
     with pytest.raises(OscalGenError, match="must be a mapping"):
         load_input(path)
+
+
+def test_load_input_rejects_unknown_top_level_keys(tmp_path):
+    """A typo must not be silently ignored: it produces a confusing downstream error."""
+    from oscalgen.spec import load_input
+
+    path = tmp_path / "typo.yaml"
+    path.write_text("organization:\n  name: Acme\ncomponenets: []\n", encoding="utf-8")
+    with pytest.raises(OscalGenError, match="unknown top-level key"):
+        load_input(path)
+
+
+def test_load_input_accepts_every_recognized_key(tmp_path):
+    from oscalgen.spec import TOP_LEVEL_KEYS, load_input
+
+    path = tmp_path / "all.yaml"
+    path.write_text(
+        yaml.safe_dump({k: {} for k in TOP_LEVEL_KEYS}), encoding="utf-8"
+    )
+    assert set(load_input(path)) == TOP_LEVEL_KEYS
 
 
 def test_cli_build_returns_nonzero_on_schema_error(tmp_path, spec, capsys):
