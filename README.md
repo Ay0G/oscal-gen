@@ -1,5 +1,9 @@
 # oscal-gen
 
+[![PyPI](https://img.shields.io/pypi/v/oscal-gen.svg)](https://pypi.org/project/oscal-gen/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/oscal-gen.svg)](https://pypi.org/project/oscal-gen/)
+
 Generate OSCAL [component-definition](https://oscal.nist.gov/specs), [System Security
 Plan](https://oscal.nist.gov/specs), and [POA&M](https://oscal.nist.gov/specs) documents
 from a single human-friendly YAML file.
@@ -140,3 +144,10 @@ respective modules if you only need one document.
 .venv/bin/python -m pytest
 .venv/bin/ruff check src tests
 ```
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE).
+
+Developed with AI assistance. `oscal-cli` is an external dependency used only for
+schema validation; it is not bundled and is not affiliated with this project.
