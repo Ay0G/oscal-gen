@@ -1,0 +1,66 @@
+name: Publish to PyPI
+
+# Trusted Publishing (OIDC): PyPI issues a short-lived credential per run, so
+# there is no API token stored in this repo and nothing to leak or rotate.
+#
+# One-time setup on pypi.org, required before the first release:
+#   1. Register a pending publisher for the GitHub repo Ay0G/oscal-gen
+#      with workflow filename: publish.yml
+#      (Manage -> Publishing -> add a new publisher -> GitHub)
+#   2. Create a "pypi" environment in the repo with required reviewers.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/oscal-gen
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build
+        run: python -m build
+
+      - name: Check package metadata
+        run: twine check --strict dist/*
+
+      - name: Upload to PyPI
+        run: twine upload --non-interactive dist/*
+
+      - name: Confirm the release is live
+        run: |
+          python - <<'PY'
+          import json, re, sys, time, urllib.request, pathlib
+          want = re.search(r'^version\s*=\s*"([^"]+)"',
+                           pathlib.Path("pyproject.toml").read_text(), re.M).group(1)
+          print(f"waiting for oscal-gen {want} on PyPI")
+          for attempt in range(12):
+              try:
+                  with urllib.request.urlopen("https://pypi.org/pypi/oscal-gen/json") as r:
+                      if want in json.load(r)["releases"]:
+                          print(f"live: https://pypi.org/project/oscal-gen/{want}/")
+                          sys.exit(0)
+                  print(f"attempt {attempt + 1}: not indexed yet")
+              except Exception as exc:
+                  print(f"attempt {attempt + 1}: {exc}")
+              time.sleep(15)
+          sys.exit(f"oscal-gen {want} never appeared on PyPI")
+          PY

@@ -145,6 +145,28 @@ respective modules if you only need one document.
 .venv/bin/ruff check src tests
 ```
 
+## Publishing
+
+Tagged releases publish to PyPI via GitHub Actions using Trusted Publishing, so
+no API token is stored in the repository.
+
+One-time setup:
+
+1. On PyPI, register a **pending publisher** for the GitHub repo `Ay0G/oscal-gen`
+   with workflow filename `publish.yml`
+   (Manage → Publishing → add a new publisher → GitHub).
+2. Create a `pypi` environment in the repo, ideally with a required reviewer.
+
+Then release:
+
+```sh
+# bump `version` in pyproject.toml, commit
+git tag v0.1.0 && git push --tags
+gh release create v0.1.0
+```
+
+`test` and `determinism` run on every push; `publish` only on release.
+
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE).
